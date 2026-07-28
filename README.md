@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐍 넥스트 세대 뱀 게임 & Disqus 커뮤니티</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
+        
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #0d1117;
+            color: #f0f6fc;
+        }
+
+        .game-canvas-container {
+            position: relative;
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.2);
+        }
+
+        /* Canvas glowing effect */
+        canvas {
+            background-color: #161b22;
+            border-radius: 1rem;
+        }
+
+        .btn-arcade {
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
+        }
+
+        .btn-arcade:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.4);
+        }
+
+        /* Glassmorphism containers */
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-4 sm:p-8">
+
+    <div class="w-full max-w-2xl mx-auto space-y-6">
+        
+        <!-- Header Section -->
+        <header class="text-center space-y-2">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
+                🐍 CLASSIC SNAKE GAME
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-400">방향키 또는 터치 버튼으로 뱀을 조작해 먹이를 먹어보세요!</p>
+        </header>
+
+        <!-- Scoreboard & Controls Header -->
+        <div class="glass-panel p-4 rounded-2xl flex items-center justify-between border border-emerald-500/20">
+            <div class="flex items-center space-x-6">
+                <div>
+                    <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Score</div>
+                    <div id="currentScore" class="text-2xl sm:text-3xl font-black text-emerald-400">0</div>
+                </div>
+                <div class="h-8 w-px bg-slate-700"></div>
+                <div>
+                    <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Best Score</div>
+                    <div id="highScore" class="text-2xl sm:text-3xl font-black text-amber-400">0</div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <button id="btnStart" class="btn-arcade bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-xl text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span id="btnStartText">시작</span>
+                </button>
+                <button id="btnReset" class="btn-arcade bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-3 rounded-xl text-sm">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Canvas Box -->
+        <div class="game-canvas-container relative rounded-2xl overflow-hidden border border-emerald-500/30">
+            <canvas id="gameCanvas" width="400" height="400" class="w-full h-auto aspect-square block"></canvas>
+            
+            <!-- Game Over / Pause Overlay -->
+            <div id="gameOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center space-y-4">
+                <div id="overlayIcon" class="text-5xl text-emerald-400 animate-bounce">
+                    <i class="fa-solid fa-gamepad"></i>
+                </div>
+                <h2 id="overlayTitle" class="text-2xl font-bold text-white">준비되셨나요?</h2>
+                <p id="overlayMessage" class="text-sm text-slate-300 max-w-xs">시작 버튼을 누르거나 키보드 방향키를 누르면 게임이 시작됩니다.</p>
+                <button id="overlayBtn" class="btn-arcade bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 px-6 rounded-xl text-base">
+                    게임 시작하기
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Controller Pad (visible on small screens or as touch alternative) -->
+        <div class="glass-panel p-4 rounded-2xl sm:hidden flex flex-col items-center space-y-2">
+            <div class="text-xs text-slate-400 font-semibold mb-1">모바일 터치 조작</div>
+            <button id="touchUp" class="btn-arcade bg-slate-800 active:bg-emerald-600 text-white w-14 h-12 rounded-xl flex items-center justify-center text-xl">
+                <i class="fa-solid fa-caret-up"></i>
+            </button>
+            <div class="flex space-x-4">
+                <button id="touchLeft" class="btn-arcade bg-slate-800 active:bg-emerald-600 text-white w-14 h-12 rounded-xl flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-caret-left"></i>
+                </button>
+                <button id="touchDown" class="btn-arcade bg-slate-800 active:bg-emerald-600 text-white w-14 h-12 rounded-xl flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-caret-down"></i>
+                </button>
+                <button id="touchRight" class="btn-arcade bg-slate-800 active:bg-emerald-600 text-white w-14 h-12 rounded-xl flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-caret-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Disqus Comments Section -->
+        <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-regular fa-comments text-emerald-400 text-xl"></i>
+                    <h3 class="text-lg font-bold text-white">커뮤니티 및 댓글</h3>
+                </div>
+                <span class="text-xs bg-slate-800 text-slate-400 px-2.5 py-1 rounded-full">Disqus</span>
+            </div>
+
+            <!-- Disqus Thread Container -->
+            <div id="disqus_thread" class="min-h-[250px] text-slate-300"></div>
+            <noscript>
+                Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" class="text-emerald-400 underline">comments powered by Disqus.</a>
+            </noscript>
+        </div>
+
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const currentScoreEl = document.getElementById('currentScore');
+        const highScoreEl = document.getElementById('highScore');
+        const btnStart = document.getElementById('btnStart');
+        const btnStartText = document.getElementById('btnStartText');
+        const btnReset = document.getElementById('btnReset');
+
+        const gameOverlay = document.getElementById('gameOverlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayMessage = document.getElementById('overlayMessage');
+        const overlayBtn = document.getElementById('overlayBtn');
+        const overlayIcon = document.getElementById('overlayIcon');
+
+        // Game Constants
+        const TILE_COUNT = 20;
+        const GRID_SIZE = canvas.width / TILE_COUNT;
+        const GAME_SPEED = 100; // ms per tick
+
+        // Game State Variables
+        let snake = [];
+        let food = { x: 15, y: 15 };
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let highScore = localStorage.getItem('snake_high_score') || 0;
+        let gameInterval = null;
+        let isRunning = false;
+        let isPaused = false;
+        let lastDirection = { dx: 0, dy: 0 };
+
+        highScoreEl.innerText = highScore;
+
+        function initGame() {
+            snake = [
+                { x: 10, y: 10 },
+                { x: 9, y: 10 },
+                { x: 8, y: 10 }
+            ];
+            dx = 1;
+            dy = 0;
+            lastDirection = { dx: 1, dy: 0 };
+            score = 0;
+            currentScoreEl.innerText = score;
+            spawnFood();
+            draw();
+        }
+
+        function startGame() {
+            if (isRunning && !isPaused) return;
+
+            if (!isRunning) {
+                initGame();
+                isRunning = true;
+            }
+
+            isPaused = false;
+            gameOverlay.classList.add('hidden');
+            btnStartText.innerText = '일시정지';
+
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, GAME_SPEED);
+        }
+
+        function pauseGame() {
+            if (!isRunning) return;
+            isPaused = true;
+            clearInterval(gameInterval);
+            btnStartText.innerText = '재개';
+
+            overlayIcon.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            overlayTitle.innerText = '일시 정지됨';
+            overlayMessage.innerText = '게임을 계속 진행하려면 버튼을 누르세요.';
+            overlayBtn.innerText = '계속하기';
+            gameOverlay.classList.remove('hidden');
+        }
+
+        function gameOver() {
+            isRunning = false;
+            clearInterval(gameInterval);
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snake_high_score', highScore);
+                highScoreEl.innerText = highScore;
+            }
+
+            btnStartText.innerText = '시작';
+
+            overlayIcon.innerHTML = '<i class="fa-solid fa-skull-crossbones text-rose-500"></i>';
+            overlayTitle.innerText = '게임 오버!';
+            overlayMessage.innerText = `최종 점수: ${score}점`;
+            overlayBtn.innerText = '다시 도전하기';
+            gameOverlay.classList.remove('hidden');
+        }
+
+        function resetGame() {
+            clearInterval(gameInterval);
+            isRunning = false;
+            isPaused = false;
+            initGame();
+            btnStartText.innerText = '시작';
+            
+            overlayIcon.innerHTML = '<i class="fa-solid fa-gamepad"></i>';
+            overlayTitle.innerText = '새 게임 준비완료';
+            overlayMessage.innerText = '시작 버튼을 눌러 출발하세요!';
+            overlayBtn.innerText = '게임 시작하기';
+            gameOverlay.classList.remove('hidden');
+        }
+
+        function gameLoop() {
+            moveSnake();
+
+            if (checkCollision()) {
+                gameOver();
+                return;
+            }
+
+            draw();
+        }
+
+        function moveSnake() {
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+            lastDirection = { dx, dy };
+
+            // Eat food check
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                currentScoreEl.innerText = score;
+                spawnFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function spawnFood() {
+            let valid = false;
+            while (!valid) {
+                food.x = Math.floor(Math.random() * TILE_COUNT);
+                food.y = Math.floor(Math.random() * TILE_COUNT);
+                valid = !snake.some(segment => segment.x === food.x && segment.y === food.y);
+            }
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+
+            // Wall collisions
+            if (head.x < 0 || head.x >= TILE_COUNT || head.y < 0 || head.y >= TILE_COUNT) {
+                return true;
+            }
+
+            // Self collision
+            for (let i = 1; i < snake.length; i++) {
+                if (snake[i].x === head.x && snake[i].y === head.y) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        function draw() {
+            // Clear Background
+            ctx.fillStyle = '#161b22';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid Lines (Subtle)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= TILE_COUNT; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * GRID_SIZE, 0);
+                ctx.lineTo(i * GRID_SIZE, canvas.height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i * GRID_SIZE);
+                ctx.lineTo(canvas.width, i * GRID_SIZE);
+                ctx.stroke();
+            }
+
+            // Draw Food (Apple style glow circle)
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = '#f43f5e';
+            ctx.fillStyle = '#f43f5e';
+            ctx.beginPath();
+            ctx.arc(
+                food.x * GRID_SIZE + GRID_SIZE / 2,
+                food.y * GRID_SIZE + GRID_SIZE / 2,
+                GRID_SIZE / 2 - 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+            ctx.shadowBlur = 0; // reset shadow
+
+            // Draw Snake
+            snake.forEach((segment, index) => {
+                const isHead = index === 0;
+
+                if (isHead) {
+                    ctx.fillStyle = '#34d399'; // Vibrant emerald head
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#10b981';
+                } else {
+                    // Body gradient color tone
+                    ctx.fillStyle = index % 2 === 0 ? '#10b981' : '#059669';
+                    ctx.shadowBlur = 0;
+                }
+
+                const pad = 1.5;
+                const rx = segment.x * GRID_SIZE + pad;
+                const ry = segment.y * GRID_SIZE + pad;
+                const size = GRID_SIZE - pad * 2;
+
+                // Rounded segments
+                ctx.beginPath();
+                ctx.roundRect(rx, ry, size, size, isHead ? 6 : 4);
+                ctx.fill();
+            });
+            ctx.shadowBlur = 0;
+        }
+
+        function changeDirection(newDx, newDy) {
+            // Prevent 180 degree reverse turns
+            if (newDx === -lastDirection.dx && newDy === -lastDirection.dy) return;
+            
+            dx = newDx;
+            dy = newDy;
+
+            if (!isRunning) {
+                startGame();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp': case 'w': case 'W':
+                    changeDirection(0, -1);
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown': case 's': case 'S':
+                    changeDirection(0, 1);
+                    e.preventDefault();
+                    break;
+                case 'ArrowLeft': case 'a': case 'A':
+                    changeDirection(-1, 0);
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight': case 'd': case 'D':
+                    changeDirection(1, 0);
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    if (isRunning && !isPaused) pauseGame();
+                    else startGame();
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        // Touch Control Listeners
+        document.getElementById('touchUp').addEventListener('click', () => changeDirection(0, -1));
+        document.getElementById('touchDown').addEventListener('click', () => changeDirection(0, 1));
+        document.getElementById('touchLeft').addEventListener('click', () => changeDirection(-1, 0));
+        document.getElementById('touchRight').addEventListener('click', () => changeDirection(1, 0));
+
+        btnStart.addEventListener('click', () => {
+            if (isRunning && !isPaused) pauseGame();
+            else startGame();
+        });
+
+        btnReset.addEventListener('click', resetGame);
+        overlayBtn.addEventListener('click', startGame);
+
+        // Initial draw on load
+        initGame();
+    </script>
+
+    <script>
+        (function() { // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        s.src = 'https://workspaces-codespaces-blank-oseungbin-html.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+        })();
+    </script>
+</body>
+</html>
